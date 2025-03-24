@@ -120,11 +120,11 @@
                           cache cache-lock current-cache-size 
                           metrics lsh-index vector-dimension])
 
-(defn- serialize-vector [vector]
+(defn serialize-vector [vector]
   (let [vector-str (str/join "," (map str vector))]
     vector-str))
 
-(defn- deserialize-vector [vector-str dimensions]
+(defn deserialize-vector [vector-str dimensions]
   (let [values (str/split vector-str #",")
         parsed (mapv #(Double/parseDouble %) values)]
     parsed))

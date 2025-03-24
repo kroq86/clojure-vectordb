@@ -55,6 +55,19 @@ lein run
 
 This will start the server on port 3000 by default.
 
+### Running Examples
+
+The project includes example code in the `examples` directory. To run the OpenAI example:
+
+```
+lein run -m openai
+```
+
+Note: You'll need to set your OpenAI API key as an environment variable:
+```bash
+export OPENAI_API_KEY="your-api-key-here"
+```
+
 ### Configuration
 
 Set the following environment variables to customize behavior:
