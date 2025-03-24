@@ -38,32 +38,30 @@
      [:div.column.is-one-third
       [:div.card
        [:div.card-header
-        [:p.card-header-title "Search Documents"]]
+        [:p.card-header-title "All Documents"]]
+       [:div.card-content
+        (let [documents (api/list-documents db)]
+          (if (empty? documents)
+            [:p "No documents found."]
+            [:div
+             (for [doc documents]
+               [:div.result-item
+                [:p [:strong "Document ID: "] (:id doc)]
+                [:p [:strong "Content: "] (:content doc)]])]))]]
+      
+      [:div.card
+       [:div.card-header
+        [:p.card-header-title "Quick Search"]]
        [:div.card-content
         [:form#search-form {:action "/ui/search" :method "get"}
          [:div.field
-          [:label.label "Query Text"]
           [:div.control
-           [:textarea.textarea {:name "query" :rows 3 :placeholder "Enter your search query"}]]]
-         
-         [:div.field
-          [:label.label "Number of Results"]
-          [:div.control
-           [:input.input {:type "number" :name "num_results" :value 3 :min 1 :max 10}]]]
-         
-         [:div.field
-          [:label.label "Search Method"]
-          [:div.control
-           [:div.select
-            [:select {:name "method"}
-             [:option {:value "exact"} "Exact Search"]
-             [:option {:value "approximate"} "Approximate Search"]
-             [:option {:value "lsh"} "LSH Search"]
-             [:option {:value "hnsw"} "HNSW (default)"]]]]]
-         
+           [:input.input {:type "text" :name "query" :placeholder "Quick search query"}]]]
          [:div.field
           [:div.control
-           [:button.button.is-primary {:type "submit"} "Search"]]]]]]]
+           [:button.button.is-small.is-info {:type "submit"} "Search"]]]
+         [:input {:type "hidden" :name "num_results" :value "3"}]
+         [:input {:type "hidden" :name "method" :value "hnsw"}]]]]]
      
      [:div.column
       [:div.card
