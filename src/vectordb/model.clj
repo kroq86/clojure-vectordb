@@ -2,11 +2,13 @@
   (:require [clojure.math.numeric-tower :as math]
             [next.jdbc :as jdbc]
             [next.jdbc.sql :as sql]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.string :as str])
   (:import [java.util.concurrent ConcurrentHashMap]
            [java.util LinkedHashMap Collections]
            [java.nio ByteBuffer]
-           [java.util.concurrent.atomic AtomicInteger]))
+           [java.util.concurrent.atomic AtomicInteger]
+           [java.util Base64]))
 
 ;; Performance metrics record
 (defrecord PerformanceMetrics [cache-hits cache-misses memory-usage total-vectors total-dimensions cache-size])
@@ -119,24 +121,20 @@
                           metrics lsh-index vector-dimension])
 
 (defn- serialize-vector [vector]
-  (let [buffer (ByteBuffer/allocate (* (count vector) 8))]
-    (doseq [v vector]
-      (.putDouble buffer (double v)))
-    (.array buffer)))
+  (let [vector-str (str/join "," (map str vector))]
+    vector-str))
 
-(defn- deserialize-vector [^bytes data dimensions]
-  (let [buffer (ByteBuffer/wrap data)
-        result (double-array dimensions)]
-    (dotimes [i dimensions]
-      (aset result i (.getDouble buffer)))
-    (vec result)))
+(defn- deserialize-vector [vector-str dimensions]
+  (let [values (str/split vector-str #",")
+        parsed (mapv #(Double/parseDouble %) values)]
+    parsed))
 
 (defn- initialize-db [db]
   (let [conn (:conn db)]
     (jdbc/execute! conn ["DROP TABLE IF EXISTS vectors"])
     (jdbc/execute! conn ["CREATE TABLE vectors (
                           key VARCHAR PRIMARY KEY,
-                          vector BLOB,
+                          vector TEXT,
                           dimensions INTEGER,
                           partition_id INTEGER,
                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -176,33 +174,44 @@
   (locking (:cache-lock db)
     (let [target-size (* (:max-cache-size db) 0.8)
           cache ^LinkedHashMap (:cache db)]
-      (while (and (> (:current-cache-size db) target-size)
-                  (pos? (.size cache)))
-        (let [iter (.iterator (.entrySet cache))
-              _ (.next iter)
-              entry (.next iter)]
-          (.remove iter)
-          (let [vector (.getValue entry)
-                vector-size (monitor-cache-size vector)]
-            (alter-var-root #'current-cache-size - vector-size)))))))
+      (loop [current-db db]
+        (if (and (> (:current-cache-size current-db) target-size)
+                (pos? (.size cache)))
+          (let [iter (.iterator (.entrySet cache))]
+            (if (and (.hasNext iter) 
+                    ;; Skip first entry (most recently used)
+                    (do (.next iter) (.hasNext iter)))
+              (let [entry (.next iter)]
+                (.remove iter)
+                (let [vector (.getValue entry)
+                      vector-size (monitor-cache-size vector)
+                      updated-db (assoc current-db :current-cache-size 
+                                       (- (:current-cache-size current-db) vector-size))]
+                  (recur updated-db)))
+              current-db))
+          current-db)))))
 
 (defn- set-cached-vector [db key vector]
   (locking (:cache-lock db)
     (let [cache ^LinkedHashMap (:cache db)
-          vector-size (monitor-cache-size vector)]
-      
-      ;; Remove old vector if exists
-      (when-let [old-vector (.get cache key)]
-        (let [old-size (monitor-cache-size old-vector)]
-          (alter-var-root #'current-cache-size - old-size)))
+          vector-size (monitor-cache-size vector)
+          
+          ;; Remove old vector if exists
+          db-after-remove 
+          (if-let [old-vector (.get cache key)]
+            (let [old-size (monitor-cache-size old-vector)]
+              (assoc db :current-cache-size (- (:current-cache-size db) old-size)))
+            db)]
       
       ;; Add new vector
       (.put cache key vector)
-      (alter-var-root #'current-cache-size + vector-size)
+      (let [db-after-add (assoc db-after-remove :current-cache-size 
+                               (+ (:current-cache-size db-after-remove) vector-size))]
       
-      ;; Evict if necessary
-      (when (> (:current-cache-size db) (:max-cache-size db))
-        (evict-cache db)))))
+        ;; Evict if necessary
+        (if (> (:current-cache-size db-after-add) (:max-cache-size db-after-add))
+          (evict-cache db-after-add)
+          db-after-add)))))
 
 (defn get-metrics [db]
   (let [runtime (Runtime/getRuntime)
@@ -233,13 +242,12 @@
 
 (defn insert [db key vector & {:keys [partition-id]}]
   (let [partition-id (or partition-id (mod (hash key) (:chunk-size db)))
-        vector-data (serialize-vector vector)]
+        vector-str (serialize-vector vector)
+        dimensions (count vector)]
     
-    (sql/insert! (:conn db) :vectors
-                 {:key key
-                  :vector vector-data
-                  :dimensions (count vector)
-                  :partition_id partition-id})
+    (jdbc/execute! (:conn db)
+      ["INSERT OR REPLACE INTO vectors (key, vector, dimensions, partition_id) VALUES (?, ?, ?, ?)"
+       key vector-str dimensions partition-id])
     
     (set-cached-vector db key vector)
     (let [updated-lsh-index (lsh-insert (:lsh-index db) key vector)]
@@ -250,16 +258,16 @@
     cached
     (when-let [result (jdbc/execute-one! (:conn db)
                          ["SELECT vector, dimensions FROM vectors WHERE key = ?" key])]
-      (let [vector-data (:vector result)
+      (let [vector-str (:vector result)
             dimensions (:dimensions result)
-            vector (deserialize-vector vector-data dimensions)]
+            vector (deserialize-vector vector-str dimensions)]
         (set-cached-vector db key vector)
         vector))))
 
 (defn- process-partition [db partition-vectors query-vector]
-  (for [[key vector-data dimensions] partition-vectors]
+  (for [[key vector-str dimensions] partition-vectors]
     (let [vector (or (get-cached-vector db key)
-                    (let [v (deserialize-vector vector-data dimensions)]
+                    (let [v (deserialize-vector vector-str dimensions)]
                       (set-cached-vector db key v)
                       v))
           similarity (calculate-similarity db query-vector vector)]

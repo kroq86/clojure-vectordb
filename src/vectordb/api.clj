@@ -1,5 +1,5 @@
 (ns vectordb.api
-  (:require [compojure.core :refer [defroutes GET POST DELETE context]]
+  (:require [compojure.core :refer [defroutes GET POST DELETE context routes]]
             [compojure.route :as route]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.params :refer [wrap-params]]
@@ -162,9 +162,9 @@
         cache-hits (.get (:cache-hits metrics))
         cache-misses (.get (:cache-misses metrics))
         hit-ratio (if (zero? (+ cache-hits cache-misses)) 
-                    0 
-                    (/ cache-hits (+ cache-hits cache-misses)))]
+                    0.0 
+                    (double (/ cache-hits (+ cache-hits cache-misses))))]
     {:total-vectors (:total-vectors metrics)
-     :memory-usage (format "%.2f MB" (:memory-usage metrics))
+     :memory-usage (format "%.2f MB" (double (:memory-usage metrics)))
      :cache-hit-ratio (format "%.2f" hit-ratio)
-     :cache-size (format "%.2f MB" (/ (:cache-size metrics) (* 1024.0 1024.0)))}))) 
+     :cache-size (format "%.2f MB" (double (/ (:cache-size metrics) (* 1024.0 1024.0))))})) 

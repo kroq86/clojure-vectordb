@@ -15,10 +15,17 @@
 
 (def db-path (or (System/getenv "VECTOR_DB_PATH") ":memory:"))
 (def vector-db (atom nil))
+(def enable-csrf (= (System/getenv "ENABLE_CSRF") "true"))
 
 (defn create-combined-handler [db]
   (let [api-handler (api/create-api-handler db)
-        ui-handler (ui/ui-routes db)]
+        ui-handler (ui/ui-routes db)
+        
+        ;; Site defaults with optional CSRF
+        site-config (if enable-csrf
+                      site-defaults
+                      (assoc-in site-defaults [:security :anti-forgery] false))]
+    
     (routes
       (context "/api" []
         (-> api-handler
@@ -31,7 +38,7 @@
             (wrap-multipart-params)
             (wrap-params)
             (wrap-keyword-params)
-            (wrap-defaults site-defaults))))))
+            (wrap-defaults site-config))))))
 
 (defn start-server [port]
   (let [db (model/new-vector-database db-path)
@@ -40,6 +47,7 @@
     (log/info "Initializing sample data...")
     (api/init-sample-data db)
     (log/info "Starting server on port" port)
+    (log/info "CSRF protection:" (if enable-csrf "enabled" "disabled"))
     (jetty/run-jetty handler {:port port :join? false})))
 
 (defn -main

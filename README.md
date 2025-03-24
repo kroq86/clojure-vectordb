@@ -61,11 +61,35 @@ Set the following environment variables to customize behavior:
 
 - `PORT`: The HTTP port (default: 3000)
 - `VECTOR_DB_PATH`: Path to the DuckDB database file (default: in-memory)
+- `ENABLE_CSRF`: Enable CSRF protection, set to "true" to enable (default: disabled)
 
 Example:
 
 ```
-PORT=8080 VECTOR_DB_PATH="data/vectors.db" lein run
+PORT=8080 VECTOR_DB_PATH="data/vectors.db" ENABLE_CSRF=true lein run
+```
+
+### Security
+
+#### CSRF Protection
+
+By default, CSRF (Cross-Site Request Forgery) protection is disabled to allow easier API and form usage. 
+
+When CSRF protection is enabled:
+- All form submissions must include a valid anti-forgery token
+- The token is automatically included in forms rendered by the UI
+- API calls may fail if they don't include the proper token
+
+To enable CSRF protection, set the `ENABLE_CSRF` environment variable to "true":
+
+```
+ENABLE_CSRF=true lein run
+```
+
+Or when using Docker:
+
+```
+docker run -p 3000:3000 -e ENABLE_CSRF=true clojure-vectordb
 ```
 
 ### Web Interface
@@ -177,6 +201,50 @@ docker run -p 3000:3000 clojure-vectordb
 ```
 
 Then access the UI at http://localhost:3000 or use the API endpoints.
+
+If port 3000 is already in use, you can map to a different port:
+
+```
+docker run -p 3001:3000 clojure-vectordb
+```
+
+Then access the UI at http://localhost:3001.
+
+To stop a running container:
+
+```
+docker ps
+docker stop CONTAINER_ID
+```
+
+## Troubleshooting
+
+### Port Already in Use
+
+If you see an error like "port already in use" when starting the server:
+
+1. Find the process using the port:
+   ```
+   lsof -i :3000
+   ```
+
+2. Stop the running container or process:
+   ```
+   docker stop CONTAINER_ID
+   ```
+   
+3. Or use a different port:
+   ```
+   docker run -p 3001:3000 clojure-vectordb
+   ```
+
+### Database Connection Issues
+
+If you experience database connection issues:
+
+1. Make sure the database path is accessible and writable
+2. Check the logs for specific DuckDB error messages
+3. Try using an in-memory database for testing by not setting the `VECTOR_DB_PATH` variable
 
 ## Developer Tools
 
