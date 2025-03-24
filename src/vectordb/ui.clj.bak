@@ -56,10 +56,10 @@
         [:form#search-form {:action "/ui/search" :method "get"}
          [:div.field
           [:div.control
-           [:input.input {:type "text" :name "query" :placeholder "Quick search query"}]]]
+           [:input.input {:type "text" :name "query" :placeholder "Quick search query" :required true}]]]
          [:div.field
           [:div.control
-           [:button.button.is-small.is-info {:type "submit"} "Search"]]]
+           [:button.button.is-small.is-primary {:type "submit"} "Search"]]]
          [:input {:type "hidden" :name "num_results" :value "3"}]
          [:input {:type "hidden" :name "method" :value "hnsw"}]]]]]
      
@@ -109,7 +109,9 @@
            [:button.button.is-danger {:type "submit"} "Delete Document"]]]]]]]]))
 
 (defn search-results-page [db query num-results method]
-  (let [search-results (api/search-text db query (Integer/parseInt num-results) method)
+  (let [num-results-int (Integer/parseInt (or num-results "3"))
+        method-str (or method "hnsw")
+        search-results (api/search-text db query num-results-int method-str)
         results (:results search-results)]
     (base-layout "Search Results"
       [:div
@@ -169,10 +171,14 @@
         (let [params (:query-params request)
               query (get params "query")
               num-results (get params "num_results" "3")
-              method (get params "method" "hnsw")]
-          (-> (search-results-page db query num-results method)
-              (response)
-              (content-type "text/html")))
+              search-method (get params "method" "hnsw")]
+          (if (str/blank? query)
+            (-> (message-page "Search Error" "Please enter a search query" "/")
+                (response)
+                (content-type "text/html"))
+            (-> (search-results-page db query num-results search-method)
+                (response)
+                (content-type "text/html"))))
         
         (and (= uri "/ui/documents") (= method :get))
         (-> (document-list-page db)

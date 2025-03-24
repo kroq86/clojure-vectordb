@@ -9,7 +9,7 @@
             [compojure.route :as route]
             [vectordb.model :as model]
             [vectordb.api :as api]
-            [vectordb.ui :as ui]
+            [vectordb.ui.core :as ui]
             [clojure.tools.logging :as log])
   (:gen-class))
 
