@@ -1,7 +1,8 @@
 (ns vectordb.ui.components.search
   (:require [vectordb.ui.components.layout :refer [base-layout]]
             [vectordb.api :as api]
-            [clojure.pprint :refer [pprint]]))
+            [clojure.pprint :refer [pprint]]
+            [clojure.string :as str]))
 
 (defn search-form []
   [:div.card
@@ -27,10 +28,10 @@
      [:input {:type "hidden" :name "method" :value "hnsw"}]]]])
 
 (defn search-result-item [result]
-  [:div.result-item
+  [:div.box.mb-4
    [:p [:strong "Document ID: "] (:key result)]
    [:p [:strong "Similarity: "] (format "%.4f" (:similarity result))]
-   [:p [:strong "Content: "] (:document result)]])
+   [:p [:strong "Content: "] (str/trim (:document result))]])
 
 (defn search-results-page [db query num-results method]
   (let [num-results-int (Integer/parseInt (or num-results "3"))
@@ -64,7 +65,4 @@
           [:p "No results found."]
           [:div
            (for [result results]
-             [:div.box.mb-4
-              [:p [:strong "Document ID: "] (:key result)]
-              [:p [:strong "Similarity: "] (format "%.4f" (:similarity result))]
-              [:p [:strong "Content: "] (:document result)]])])]]))) 
+             (search-result-item result))])]]))) 
