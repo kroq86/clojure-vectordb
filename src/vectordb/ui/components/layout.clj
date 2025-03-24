@@ -9,6 +9,23 @@
      [:title title]
      [:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"}]
      [:script {:src "https://code.jquery.com/jquery-3.6.0.min.js"}]
+     [:script "document.addEventListener('DOMContentLoaded', () => {
+       // Auto-hide notifications after 3 seconds
+       const notifications = document.querySelectorAll('.notification');
+       notifications.forEach(notification => {
+         setTimeout(() => {
+           notification.style.display = 'none';
+         }, 3000);
+       });
+       
+       // Handle delete buttons
+       const deleteButtons = document.querySelectorAll('.notification .delete');
+       deleteButtons.forEach(button => {
+         button.addEventListener('click', () => {
+           button.parentElement.style.display = 'none';
+         });
+       });
+     });"]
      [:style "
        .main-container { padding: 2rem; }
        .card { margin-bottom: 1.5rem; }

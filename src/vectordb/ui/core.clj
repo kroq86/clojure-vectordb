@@ -58,7 +58,12 @@
               doc-id (get params "doc_id")
               doc-text (get params "document_text")
               result (api/add-document db doc-id doc-text)]
-          (-> (message-page "Document Added" (:message result) "/")
+          (-> (base-layout "Vector Database"
+                [:div
+                 [:div.notification.is-success
+                  [:button.delete]
+                  (:message result)]
+                 (index-page db)])
               (response)
               (content-type "text/html")))
         
@@ -66,7 +71,12 @@
         (let [params (:form-params request)
               doc-id (get params "doc_id")
               result (api/delete-document db doc-id)]
-          (-> (message-page "Document Deleted" (:message result) "/")
+          (-> (base-layout "Vector Database"
+                [:div
+                 [:div.notification.is-success
+                  [:button.delete]
+                  (:message result)]
+                 (index-page db)])
               (response)
               (content-type "text/html")))
         
