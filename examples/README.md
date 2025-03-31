@@ -194,4 +194,127 @@ With local model (sentence-transformers):
 Choose the approach that best fits your needs:
 - For production: Use local models
 - For prototyping: API is fine
-- For large datasets: Consider hybrid approach (local + API) 
+- For large datasets: Consider hybrid approach (local + API)
+
+## Vector Database Examples
+
+This directory contains example implementations using the vector database.
+
+## TF-IDF Text Similarity Example
+
+The `text_similarity.clj` example demonstrates how to use TF-IDF (Term Frequency-Inverse Document Frequency) for text similarity search without relying on external embedding services.
+
+### Features
+
+- Pure Clojure implementation of TF-IDF
+- Cosine similarity for vector comparison
+- Configurable relevance threshold
+- Fast search using HNSW index
+- No external dependencies for embeddings
+
+### How it Works
+
+1. **Text Processing**:
+   ```clojure
+   (defn tokenize [text]
+     (-> text
+         str/lower-case
+         (str/split #"\s+")
+         (->> (filter #(> (count %) 2))))
+   ```
+   - Converts text to lowercase
+   - Splits into words
+   - Filters out short words (length > 2)
+
+2. **TF-IDF Calculation**:
+   ```clojure
+   (defn tf-idf [documents doc-freq n-docs all-terms]
+     (map (fn [tokens]
+            (let [tf (term-frequency tokens)]
+              (reduce (fn [acc term]
+                       (assoc acc term
+                              (* (get tf term 0.0)
+                                 (Math/log (/ n-docs
+                                            (get doc-freq term 1))))))
+                     {}
+                     all-terms)))
+          documents))
+   ```
+   - Term Frequency (TF): How often a term appears in a document
+   - Inverse Document Frequency (IDF): How unique a term is across documents
+   - Combined score: TF * log(N/DF) where N is total documents
+
+3. **Vector Normalization**:
+   ```clojure
+   (defn normalize-vector [vec]
+     (let [magnitude (Math/sqrt (reduce + (map #(* % %) vec)))]
+       (if (zero? magnitude)
+         vec
+         (map #(/ % magnitude) vec))))
+   ```
+   - Normalizes vectors to unit length
+   - Ensures consistent cosine similarity calculation
+
+4. **Similarity Search**:
+   ```clojure
+   (defn example-with-tfidf []
+     (def db (vdb/new-vector-database "vectors_tfidf.db"))
+     ;; Insert documents
+     ;; Search with query
+     ;; Filter by threshold
+   )
+   ```
+   - Stores normalized TF-IDF vectors in the database
+   - Uses HNSW index for fast approximate search
+   - Filters results by relevance threshold
+
+### Usage
+
+Run the example:
+```bash
+lein run -m text-similarity
+```
+
+Example output:
+```
+Adding texts using TF-IDF...
+Total insert time: 11 ms
+
+Query: What programming language is good for data analysis?
+Search time: 3 ms
+All results before filtering:
+- Python is great for data science with similarity: 0.458
+- Clojure is a functional programming language with similarity: 0.239
+- JavaScript is widely used for web development with similarity: 0.089
+- Rust is a systems programming language with similarity: 0.067
+
+Filtered results (threshold: 0.1):
+- Python is great for data science with similarity: 0.458
+- Clojure is a functional programming language with similarity: 0.239
+```
+
+### Configuration
+
+- `RELEVANCE-THRESHOLD`: Minimum similarity score (default: 0.1)
+- Search method: "hnsw" for fast approximate search
+- Number of results: 2 (configurable)
+
+### Advantages
+
+1. **No External Dependencies**: Works without OpenAI or other embedding services
+2. **Fast Performance**: HNSW index for quick similarity search
+3. **Interpretable**: TF-IDF scores are easy to understand
+4. **Configurable**: Adjustable threshold and search parameters
+
+### Limitations
+
+1. **Semantic Understanding**: Less sophisticated than neural embeddings
+2. **Term Matching**: Relies on exact term matches
+3. **Vector Size**: Grows with vocabulary size
+
+### When to Use
+
+- Quick text similarity without external services
+- Simple document matching
+- When interpretability is important
+- When fast performance is needed 
