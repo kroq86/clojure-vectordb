@@ -200,121 +200,107 @@ Choose the approach that best fits your needs:
 
 This directory contains example implementations using the vector database.
 
-## TF-IDF Text Similarity Example
+## Knowledge Base Example
 
-The `text_similarity.clj` example demonstrates how to use TF-IDF (Term Frequency-Inverse Document Frequency) for text similarity search without relying on external embedding services.
+The `knowledge_base.clj` example demonstrates how to use the vector database to create a semantic search system for documentation. It processes markdown files, splits them into sections, and enables semantic search across the content.
 
 ### Features
 
-- Pure Clojure implementation of TF-IDF
-- Cosine similarity for vector comparison
-- Configurable relevance threshold
-- Fast search using HNSW index
-- No external dependencies for embeddings
+- Automatic section splitting from markdown files
+- Semantic search across documentation sections
+- Fast retrieval using HNSW index
+- Support for multiple documentation files
+- Section-based organization
 
 ### How it Works
 
-1. **Text Processing**:
+1. **Document Processing**:
    ```clojure
-   (defn tokenize [text]
-     (-> text
-         str/lower-case
-         (str/split #"\s+")
-         (->> (filter #(> (count %) 2))))
+   (defn split-into-sections [content]
+     (->> (str/split content #"\n## ")
+          (map str/trim)
+          (filter #(not (str/blank? %)))))
    ```
-   - Converts text to lowercase
-   - Splits into words
-   - Filters out short words (length > 2)
+   - Splits markdown content into sections
+   - Preserves section titles and content
+   - Filters out empty sections
 
-2. **TF-IDF Calculation**:
+2. **Section Processing**:
    ```clojure
-   (defn tf-idf [documents doc-freq n-docs all-terms]
-     (map (fn [tokens]
-            (let [tf (term-frequency tokens)]
-              (reduce (fn [acc term]
-                       (assoc acc term
-                              (* (get tf term 0.0)
-                                 (Math/log (/ n-docs
-                                            (get doc-freq term 1))))))
-                     {}
-                     all-terms)))
-          documents))
+   (defn process-section [section]
+     (let [[title & content] (str/split section #"\n" 2)
+           id (create-section-id title)]
+       {:id id
+        :title title
+        :content (str/trim content)}))
    ```
-   - Term Frequency (TF): How often a term appears in a document
-   - Inverse Document Frequency (IDF): How unique a term is across documents
-   - Combined score: TF * log(N/DF) where N is total documents
+   - Extracts section title and content
+   - Creates unique section IDs
+   - Prepares sections for storage
 
-3. **Vector Normalization**:
+3. **Knowledge Base Creation**:
    ```clojure
-   (defn normalize-vector [vec]
-     (let [magnitude (Math/sqrt (reduce + (map #(* % %) vec)))]
-       (if (zero? magnitude)
-         vec
-         (map #(/ % magnitude) vec))))
-   ```
-   - Normalizes vectors to unit length
-   - Ensures consistent cosine similarity calculation
-
-4. **Similarity Search**:
-   ```clojure
-   (defn example-with-tfidf []
-     (def db (vdb/new-vector-database "vectors_tfidf.db"))
-     ;; Insert documents
-     ;; Search with query
-     ;; Filter by threshold
+   (defn example-with-knowledge-base []
+     (def db (vdb/new-vector-database "knowledge_base.db"))
+     ;; Process and store sections
+     ;; Enable semantic search
    )
    ```
-   - Stores normalized TF-IDF vectors in the database
-   - Uses HNSW index for fast approximate search
-   - Filters results by relevance threshold
+   - Creates vector database for sections
+   - Processes documentation files
+   - Enables semantic search
 
 ### Usage
 
-Run the example:
-```bash
-lein run -m text-similarity
-```
+1. Place your markdown documentation files in the project directory
+2. Run the example:
+   ```bash
+   lein run -m knowledge-base
+   ```
 
 Example output:
 ```
-Adding texts using TF-IDF...
-Total insert time: 11 ms
+Adding sections to knowledge base...
+Total insert time: 150 ms
 
-Query: What programming language is good for data analysis?
-Search time: 3 ms
-All results before filtering:
-- Python is great for data science with similarity: 0.458
-- Clojure is a functional programming language with similarity: 0.239
-- JavaScript is widely used for web development with similarity: 0.089
-- Rust is a systems programming language with similarity: 0.067
-
-Filtered results (threshold: 0.1):
-- Python is great for data science with similarity: 0.458
-- Clojure is a functional programming language with similarity: 0.239
+Query: How to handle array operations in FASM?
+Search time: 5 ms
+Relevant sections:
+- Array Handling Rules with similarity: 0.85
+- Array Declaration and Access with similarity: 0.82
+- Array Iteration with similarity: 0.78
 ```
 
 ### Configuration
 
-- `RELEVANCE-THRESHOLD`: Minimum similarity score (default: 0.1)
+- Number of results: 3 (configurable)
 - Search method: "hnsw" for fast approximate search
-- Number of results: 2 (configurable)
+- Section splitting: Based on markdown headers (##)
 
-### Advantages
+### Benefits
 
-1. **No External Dependencies**: Works without OpenAI or other embedding services
-2. **Fast Performance**: HNSW index for quick similarity search
-3. **Interpretable**: TF-IDF scores are easy to understand
-4. **Configurable**: Adjustable threshold and search parameters
+1. **Efficient Search**
+   - Fast semantic search across documentation
+   - Relevant section retrieval
+   - Configurable result count
 
-### Limitations
+2. **Organization**
+   - Automatic section splitting
+   - Preserved document structure
+   - Easy content updates
 
-1. **Semantic Understanding**: Less sophisticated than neural embeddings
-2. **Term Matching**: Relies on exact term matches
-3. **Vector Size**: Grows with vocabulary size
+3. **Usability**
+   - Simple markdown input
+   - Natural language queries
+   - Clear result presentation
 
-### When to Use
+### Use Cases
 
-- Quick text similarity without external services
-- Simple document matching
-- When interpretability is important
-- When fast performance is needed 
+- Documentation search
+- Code reference lookup
+- Technical documentation indexing
+- Knowledge base creation
+
+## TF-IDF Text Similarity Example
+
+The `
