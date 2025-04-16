@@ -25,4 +25,5 @@
   :profiles {:uberjar {:aot :all
                         :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
              :dev {:dependencies [[org.clojure/test.check "1.1.1"]]}}
-  :repl-options {:init-ns vectordb.core}) 
+  :repl-options {:init-ns vectordb.core}
+  :aliases {"run-agent" ["run" "-m" "agent-integration"]}) 
